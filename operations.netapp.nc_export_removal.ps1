@@ -1,3 +1,5 @@
+# Note: This script logs to our Splunk environment but that function is not included in the upload so I have commented out those lines.
+
 Import-Module DataONTAP
 
 <#
@@ -6,13 +8,13 @@ Import-Module DataONTAP
     Removes a client from export rules in our NetApp environment 
 
 .EXAMPLE
-    Remove-nc_export_rules -client w17196 -creds my_creds
+    Remove-nc_export_rules -client server1 -creds my_creds
 
 .PARAMETER client
     The name of the client to remove.
 
 .PARAMETER creds
-    Your adm account credentials.  Create a credential object prior by using a command like 'my_creds = Get-Credential'
+    Your administrator account credentials.  Create a credential object prior by using a command like 'my_creds = Get-Credential'
 
 #>
 function remove-nc_export_rules() {
@@ -37,7 +39,7 @@ function remove-nc_export_rules() {
                         
 
         # Setup script variables
-        $clusters = @("robsandcl-vip","robcl")
+        $clusters = @("cluster1","cluster2")
         
         foreach ($cluster in $clusters)
         {
@@ -128,7 +130,7 @@ function remove-nc_export_rules() {
                                 }
 
                             # Write deleted rules to Splunk
-                            New-Splunk_Event -severity INFO -message $actionReport -sourceType Powershell -source $scriptname
+                            # New-Splunk_Event -severity INFO -message $actionReport -sourceType Powershell -source $scriptname
         
 
                         }
@@ -142,7 +144,7 @@ function remove-nc_export_rules() {
                         $deleted_rule = New-Object PSObject
                         $deleted_rule | Add-Member Status $message
                         $actionReport.deleted_rules += $deleted_rule
-                        New-Splunk_Event -severity INFO -message $actionReport -sourceType Powershell -source $scriptname
+                        # New-Splunk_Event -severity INFO -message $actionReport -sourceType Powershell -source $scriptname
                         
                     }
 
@@ -158,7 +160,7 @@ function remove-nc_export_rules() {
                     $deleted_rule = New-Object PSObject
                     $deleted_rule | Add-Member Status $message
                     $actionReport.deleted_rules += $deleted_rule
-                    New-Splunk_Event -severity INFO -message $actionReport -sourceType Powershell -source $scriptname
+                    # New-Splunk_Event -severity INFO -message $actionReport -sourceType Powershell -source $scriptname
                 
                 }
 
