@@ -5,7 +5,7 @@ Import-Module DataONTAP
 <#
 
 .DESCRIPTION
-    Removes a client from export rules in our NetApp environment 
+    Removes a client from export rules in a NetApp environment 
 
 .EXAMPLE
     Remove-nc_export_rules -client server1 -creds my_creds
@@ -44,7 +44,7 @@ function remove-nc_export_rules() {
         foreach ($cluster in $clusters)
         {
 
-            $logstring = (Connect-NcController -Name $cluster -Credential $creds)
+            Connect-NcController -Name $cluster -Credential $creds
             $RulesToDelete = @()
 
             # Enumerate the rules that match the specified client.
@@ -165,9 +165,6 @@ function remove-nc_export_rules() {
                 }
 
                 
-            # Disconnect from current controller
-            $Global:CurrentNcController = $null
-
             # Cleaning up loop variables
             $RulestoDelete = @()
             $ruletodelete = $null
