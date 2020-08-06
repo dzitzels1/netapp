@@ -1,12 +1,28 @@
+# Note: This script logs to my Splunk environment but that function is not included in the upload so I have commented out the line that actually logs.
+
+<#
+
+In my environment, we have a 'cooling off' period of 30 days between decommissioning and completely deleting a volume.  This script covers the decommission task.
+
+To be considered decommissioned, a volume must go through the following:
+
+1. Renamed by pre-pending a dispose and date stamp string so that the volume is named as such: 'Dispose_yyyyMMdd_volume1'.
+2. Dismounted so that it cannot be accessed.
+3. Set as Restricted so that no new connections can be made.
+
+This script does not take into account any data protection mechanisms (SnapMirror, SnapVault, etc) that may be attached to the volume.  That may come in a later version.
+
+#>
+
 Import-Module DataONTAP
 
 <#
 
 .DESCRIPTION
-    Decommissions but does not completely remove a set of volumes in our NetApp environment 
+    Decommissions but does not completely remove a set of volumes in a NetApp environment 
 
 .EXAMPLE
-    remove-nc_nodp-volume -volume volume1[,volume2][...] -cluster cluster1 -creds $my_creds
+    remove-nc_nodp-volume -volume volume1[,volume2][,...] -cluster cluster1 -creds $my_creds
 
 .PARAMETER volumes
     An array of target volumes to decommission.
@@ -15,7 +31,7 @@ Import-Module DataONTAP
     The name of the cluster where the target volumes resides.
 
 .PARAMETER creds
-    Your adm account credentials.  Create a credential object prior by using a command like '$my_creds = Get-Credential'
+    Your administrator account credentials.  Create a credential object prior by using a command like '$my_creds = Get-Credential'
 
 #>
 
@@ -196,7 +212,7 @@ function remove-nc_nodp_volume() {
 
 
 
-    New-Splunk_Event -severity INFO -message $splunkLog -sourceType Powershell -source $scriptname
+    # New-Splunk_Event -severity INFO -message $splunkLog -sourceType Powershell -source $scriptname
 
 }
 
