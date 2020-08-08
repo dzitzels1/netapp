@@ -8,7 +8,7 @@ To be considered decommissioned, a volume must go through the following:
 
 1. Renamed by pre-pending a dispose and date stamp string so that the volume is named as such: 'Dispose_yyyyMMdd_volume1'.
 2. Dismounted so that it cannot be accessed.
-3. Set as Restricted so that no new connections can be made.
+3. Set as Restricted so that it cannot be mounted.
 
 This script does not take into account any data protection mechanisms (SnapMirror, SnapVault, etc) that may be attached to the volume.  That may come in a later version.
 
