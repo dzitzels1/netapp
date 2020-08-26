@@ -53,150 +53,130 @@ function Remove-NcNoDP_Volume() {
     # Set up Splunk logging variables
     $scriptname = $PSCommandPath | Split-Path -Leaf
     $scriptname = [System.IO.Path]::GetFileNameWithoutExtension($scriptname)
-    $splunkLog = New-Object PSObject
-    $splunkLog | Add-Member logged_messages @()
+    $SplunkReport = New-Object PSObject
+    $SplunkReport | Add-Member logged_messages @()
+
+    # Set up credentials
+    $storage_username = 'DOMAIN\' + $creds.GetNetworkCredential().Username
+    $password = $creds.GetNetworkCredential().Password
+    [System.Security.SecureString]$strong_password = ConvertTo-SecureString -String $password -AsPlainText -Force
+    $Storage_creds = New-Object System.Management.Automation.PSCredential ($storage_username,$strong_password)
+
+
 
     # Other useful variables
     $date = Get-Date (Get-Date).AddMonths(1) -f yyyyMMdd
-    $delete_confirmed = $false
-    $root_volume = $false
-    $disposed_volume = $false
+    $decommission_confirmed = $false
     
     # Connect to cluster.
-    try {
-        
-        Connect-NcController -Name $cluster -Credential $creds -ErrorAction Stop | Out-Null
+    try 
+        {
+
+            $conn = $null
+            $conn = Connect-NcController -Name $cluster.Name -Credential $Storage_creds -ErrorAction Stop
+
+        } # End try
     
-    }
-    catch {
-        
-        Write-Host "Could not connect to cluster $cluster.  Verify that the cluster is accessible and check your credentials."
-        break
-    
-    }
-    
-    # Create a volume list
+    catch 
+        {
+
+            if ( !( $cluster.name.Contains("secure-cluster") ) )
+                {
+
+                    $message = "Could not connect to cluster: "
+                    $message += $cluster.Name
+                    $message += ".  Verify that the cluster is accessible and check your credentials."
+                    Write-Host $message
+                    $SplunkReport.logged_lines += $message
+                    break
+
+                } # End if
+
+        } # End catch
+
+    # Create a volume list to delete
     $list_volumes = @()
     for ( $i=0; $i -lt $volumes.Length; $i++ )
         {
 
-            $vol = Get-NcVol -Name $volumes[$i]
-            if ( $null -eq $vol) 
+            $vol = Get-NcVol -Name $volumes[$i] -Controller $conn
+
+            if ( $null -eq $vol) # Volume does not exist.
                 { 
                     
                     Write-Host "Volume" $volumes[$i] "was not found on the array."
                     continue 
-                
-                }
-            $new_name = 'Dispose_' + $date + '_' + $vol.Name
-            $volume_to_delete = New-Object PSObject
-            $volume_to_delete | Add-Member Name $vol.Name
-            $volume_to_delete | Add-Member NewName $new_name
-            $volume_to_delete | Add-Member SVM $vol.Vserver
-            $volume_to_delete | Add-Member Aggr $vol.Aggregate
-            $list_volumes += $volume_to_delete
 
+                }
+
+            elseif ( $vol.VolumeStateAttributes.IsVserverRoot -eq $true )  # Volume is a root volume.
+                {
+                
+                    $message = "Cannot decommission a root volume: "
+                    $message += $vol.Name
+                    continue
+
+                }
+                
+            elseif ( $vol.Name -like '*Dispose*' ) # Volume is already disposed.
+                {
+                    
+                    $message = $temp_name + " is a disposed volume.  Cannot dispose of a disposed volume."
+                    Write-Host $message
+                    $SplunkReport.logged_messages += $message
+                    continue
+                            
+                }
+        
+
+            else
+                {
+
+                    $new_name = 'Dispose_' + $date + '_' + $vol.Name
+                    $volume_to_delete = New-Object PSObject
+                    $volume_to_delete | Add-Member Name $vol.Name
+                    $volume_to_delete | Add-Member NewName $new_name
+                    $volume_to_delete | Add-Member SVM $vol.Vserver
+                    $list_volumes += $volume_to_delete
+            
+                }
+                        
         } 
 
+    # Display the volumes and ask for confirmation.
     $message = "The following volumes will be decommissioned: "
     Write-Host $message
-    for ( $i=0; $i -lt $list_volumes.Length; $i++ )
-        {
+    Write-Host ($list_volumes |Format-Table -AutoSize |Out-String)
 
-            $message = $list_volumes[$i].Name
-            Write-Host $message
-
-        }
     $message = "Are you sure (Y/N)?: "
     $answer = Read-Host -Prompt $message
-    if ( ($answer -eq "Y") -or ($answer = 'y') ) { $delete_confirmed = $true }
+    if ( ($answer -eq "Y") -or ($answer = 'y') ) { $decommission_confirmed = $true }
     
 
-    if ( $delete_confirmed )
+    if ( $decommission_confirmed )
 
         {
 
-            # Check to see if we are trying to decomm a root volume
             for ( $i=0; $i -lt $list_volumes.Length; $i++ )
-                {
-
-                    # If the name contains the word root, we will assume root volume.
-                    $temp_name = $list_volumes[$i].Name
-                    if ( ( $temp_name -like '*root*' ) -or ( $temp_name -like '*ROOT*' ) )
-                        {
-                            
-                            $root_volume = $true
-                            $message = $temp_name + " is a root volume.  Cannot dispose of a root volume."
-                            Write-Host $message
-                            $splunkLog.logged_messages += $message
-                                    
-                        }
-
-                    # If the volume aggregate contains the word root, we will assume root volume.
-                    if ( ( $list_volumes[$i].Aggr -like '*root*' ) -or ( $list_volumes[$i].Aggr -like '*ROOT*' ) )
-                        {
-                            
-                            $root_volume = $true
-                            $message = $temp_name + " is a root volume.  Cannot dispose of a root volume."
-                            Write-Host $message
-                            $splunkLog.logged_messages += $message
-                                    
-                        }
-
-                    # If the volume name is vol0, we will assume root volume.
-                    if ( $list_volumes[$i].Name -eq 'vol0' )
-                        {
-                            
-                            $root_volume = $true
-                            $message = $temp_name + " is a root volume.  Cannot dispose of a root volume."
-                            Write-Host $message
-                            $splunkLog.logged_messages += $message
-                                    
-                        }
-
-                    
-                }                        
-
-
-            # Check to see if we are trying to decomm a disposed volume
-            for ( $i=0; $i -lt $list_volumes.Length; $i++ )
-                {
-
-                    $temp_name = $list_volumes[$i].Name
-                    if ( $temp_name -like '*Dispose*' )
-                        {
-                            
-                            $disposed_volume = $true
-                            $message = $temp_name + " is a disposed volume.  Cannot dispose of a disposed volume."
-                            Write-Host $message
-                            $splunkLog.logged_messages += $message
-                                    
-                        }
-                    
-                }                        
-
-            If ( !($root_volume) -and !($disposed_volume) )
-                {
-                                        
-                    for ( $i=0; $i -lt $list_volumes.Length; $i++ )
-                    {
+            {
+        
+                # Rename the volume.
+                Rename-NcVol -Name $list_volumes[$i].Name -NewName $list_volumes[$i].NewName -VserverContext $list_volumes[$i].SVM | Out-Null
                 
-                        # Rename the volume.
-                        Rename-NcVol -Name $list_volumes[$i].Name -NewName $list_volumes[$i].NewName -VserverContext $list_volumes[$i].SVM | Out-Null
-                        
-                        # Dismount the volume.
-                        Dismount-NcVol -Name $list_volumes[$i].NewName -VserverContext $list_volumes[$i].SVM | Out-Null
+                # Dismount the volume.
+                Dismount-NcVol -Name $list_volumes[$i].NewName -VserverContext $list_volumes[$i].SVM | Out-Null
 
-                        # Set the volume as Restricted.
-                        Set-NcVol -Name $list_volumes[$i].NewName -Restricted -VserverContext $list_volumes[$i].SVM | Out-Null
+                # Set the volume as Restricted.
+                Set-NcVol -Name $list_volumes[$i].NewName -Restricted -VserverContext $list_volumes[$i].SVM | Out-Null
 
-                        $message = 'Volume ' + $list_volumes[$i].Name + ' has been decommissioned.'
-                        Write-Host $message
-                        $splunkLog.logged_messages += $message
+                $message = 'Volume ' 
+                $message += $list_volumes[$i].Name 
+                $message += ' has been decommissioned.'
+                Write-Host $message
+                $SplunkReport.logged_messages += $message
 
-                    }
+            }
 
-                }
                             
         }
                         
@@ -206,13 +186,13 @@ function Remove-NcNoDP_Volume() {
 
             $message = "User cancelled volume decommission."
             Write-Host $message
-            $splunkLog.logged_messages += $message
+            $SplunkReport.logged_messages += $message
 
         }
 
 
 
-    # New-Splunk_Event -severity INFO -message $splunkLog -sourceType Powershell -source $scriptname
+#    New-Splunk_Event -severity INFO -message $SplunkReport -sourceType Powershell -source $scriptname
 
 }
 
