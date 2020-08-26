@@ -35,7 +35,7 @@ Import-Module DataONTAP
 
 #>
 
-function remove-nc_nodp_volume() {
+function Remove-NcNoDP_Volume() {
 
     Param ( 
             
@@ -217,5 +217,5 @@ function remove-nc_nodp_volume() {
 }
 
 
-Export-ModuleMember -Function remove-nc_nodp_volume
+Export-ModuleMember -Function Remove-NcNoDP_Volume
 
