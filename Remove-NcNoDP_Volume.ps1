@@ -119,7 +119,7 @@ function Remove-NcNoDP_Volume() {
 
                 }
                 
-            elseif ( $vol.Name -like '*Dispose*' ) # Volume is already disposed.
+            elseif ( $vol.Name -like '*Dispose*' ) # Volume is already decommissioned.
                 {
                     
                     $message = $temp_name + " is a disposed volume.  Cannot dispose of a disposed volume."
