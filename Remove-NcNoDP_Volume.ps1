@@ -99,6 +99,7 @@ function Remove-NcNoDP_Volume() {
     for ( $i=0; $i -lt $volumes.Length; $i++ )
         {
 
+            $vol = $null
             $vol = Get-NcVol -Name $volumes[$i] -Controller $conn
 
             if ( $null -eq $vol) # Volume does not exist.
