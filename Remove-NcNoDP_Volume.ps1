@@ -115,6 +115,7 @@ function Remove-NcNoDP_Volume() {
                 
                     $message = "Cannot decommission a root volume: "
                     $message += $vol.Name
+                    Write-Host $message
                     continue
 
                 }
