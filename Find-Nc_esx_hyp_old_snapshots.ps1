@@ -46,6 +46,8 @@ function find-nc_esx_hyp_old_snapshots()
 
            )
 
+# The following C# code block was not written by me but found on the Internet and vetted for the purpose of dealing with certificate validation errors.
+
 if ( -not ( [System.Management.Automation.PSTypeName]'ServerCertificateValidationCallback' ).Type )
 {
 $certCallback = @"
@@ -82,6 +84,7 @@ Add-Type $certCallback
 [ServerCertificateValidationCallback]::Ignore()
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
+# End C# code block
 
             # Setup Splunk variables
             $scriptname = $PSCommandPath | Split-Path -Leaf
@@ -220,13 +223,13 @@ Add-Type $certCallback
             Write-Host ($entries |Format-Table -AutoSize |Out-String)
             $mail_message = ($entries |Format-Table -AutoSize |Out-String)
             Send-MailMessage -From $mail_from -To $mail_to -Subject $mail_subject -Body -$mail_message -SmtpServer $mail_smtp_server
-#            New-SNIncident -requestedby 'SNUser' -requestedfor 'SNUser' -assignmentGroup 'MY-SN-ASSIGNMENT-GROUP' -shortDescription $mail_Subject -Description $mail_message -username '<some_username>' -password '<some_password>'
+#           New-SNIncident -requestedby 'SNUser' -requestedfor 'SNUser' -assignmentGroup 'MY-SN-ASSIGNMENT-GROUP' -shortDescription $mail_Subject -Description $mail_message -username '<some_username>' -password '<some_password>'
         }
 
     if ( !($SplunkReport.logged_lines.Length -eq 0) )
         {        
 
-#           New-Splunk_Event -severity INFO -message $SplunkReport -sourceType Powershell -source $scriptname
+#          New-Splunk_Event -severity INFO -message $SplunkReport -sourceType Powershell -source $scriptname
 
         }
 
